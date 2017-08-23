@@ -1,9 +1,9 @@
-#include <SFML/Audio.hpp>
-#include <zmqpp/zmqpp.hpp>
+#include <queue>
+#include <string>
 #include <fstream>
 #include <iostream>
-#include <string>
-#include <queue>
+#include <SFML/Audio.hpp>
+#include <zmqpp/zmqpp.hpp>
 
 
 using namespace std;
@@ -19,6 +19,14 @@ void messageToFile(const message &msg, const string &fileName) {
     ofs.write((char *)data, size);
 }
 
+void threadSong(Music *music) {
+    while (true) {
+        while (music->getStatus() == SoundSource::Playing) {
+            continue;
+        }
+    }
+}
+
 int main() {
 
     cout << "This is the client" << endl;
@@ -28,7 +36,7 @@ int main() {
     s.connect("tcp://localhost:5555");
 
     Music music;
-    
+    thread t1(threadSong, &music);
 
     while (true) {
 
@@ -74,10 +82,7 @@ int main() {
         else if (operation == "file") {
             messageToFile(answer, "song.ogg");
             music.openFromFile("song.ogg");
-            music.play();
-            while (music.getStatus() == SoundSource::Playing) {
-                cout << "Playing ..." << endl;
-            }
+            music.play();    
         } 
 
         else {
