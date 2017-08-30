@@ -1,10 +1,10 @@
-#include <iostream>
-#include <zmqpp/zmqpp.hpp>
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include <glob.h>
+#include <string>
+#include <vector>
 #include <fstream>
+#include <iostream>
+#include <unordered_map>
+#include <zmqpp/zmqpp.hpp>
 
 using namespace std;
 using namespace zmqpp;
@@ -70,7 +70,7 @@ void fileToMessage(const string& fileName, message& msg) {
     msg.add_raw(bytes.data(), bytes.size());
 }
 
-int main(){
+int main() {
 
 	context ctx;
     socket s(ctx, socket_type::rep);
@@ -96,6 +96,7 @@ int main(){
 		        answer << p.first;
 		    s.send(answer);
 		}
+				
 		else if (option == "add"){
 			string nameSong;
 			m >> nameSong;
@@ -106,16 +107,16 @@ int main(){
 	        }
 	        else{
 	            answer << "not";
-	        	s.send(answer);
+	        	  s.send(answer);
 	        }
 	    }
 	    else if (option == "play"){
-	    	string songName;
-            m >> songName;
-            cout << songName << endl;
-            answer << "file";
-            fileToMessage(songs[songName], answer);
-            s.send(answer);
+	        string songName;
+          m >> songName;
+          cout << songName << endl;
+          answer << "file";
+          fileToMessage(songs[songName], answer);
+          s.send(answer);
 	    }
 	}
 
