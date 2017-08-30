@@ -1,17 +1,14 @@
-#include <zmqpp/zmqpp.hpp>
 #include <iostream>
+#include <zmqpp/zmqpp.hpp>
 #include <string>
-#include <cassert>
 #include <unordered_map>
+#include <vector>
 #include <glob.h>
 #include <fstream>
 
 using namespace std;
 using namespace zmqpp;
 
-
-
-// Split all available songs
 vector<string> split(string s, char del){
     vector<string> v;
     string nameSong = "";
@@ -57,75 +54,70 @@ unordered_map<string,string> fromDirectory(const string& path){
     return Result;
 }
 
-// Read file in bytes
 vector<char> readFileToBytes(const string& fileName) {
     ifstream ifs(fileName, ios::binary | ios::ate);
-	ifstream::pos_type pos = ifs.tellg();
+    ifstream::pos_type pos = ifs.tellg();
 
-	vector<char> result(pos);
+    vector<char> result(pos);
 
-	ifs.seekg(0, ios::beg);
-	ifs.read(result.data(), pos);
+    ifs.seekg(0, ios::beg);
+    ifs.read(result.data(), pos);
 
-	return result;
+    return result;
 }
-
-// Send bytes in a message
 void fileToMessage(const string& fileName, message& msg) {
-	vector<char> bytes = readFileToBytes(fileName);
-	msg.add_raw(bytes.data(), bytes.size());
+    vector<char> bytes = readFileToBytes(fileName);
+    msg.add_raw(bytes.data(), bytes.size());
 }
 
-int main(int argc, char** argv) {
+int main(){
 
-    context ctx;
+	context ctx;
     socket s(ctx, socket_type::rep);
     s.bind("tcp://*:5555");
 
-    string path(argv[1]);
-    unordered_map<string,string> songs = fromDirectory(path + "*");
-    
+	//string path("music/*");
+    unordered_map<string,string> songs = fromDirectory("music/*");
 
     cout << "Start serving requests!" << endl;
+    while(true){
+	    // Send message
+	    message m;
+	    s.receive(m);
+	    string option;
+	    m >> option;
 
-    while(true) {
-
-        // Send message
-        message m;
-        s.receive(m);
-        string option;
-        m >> option;
-
-        // Receive answer from client
-        message answer;
-
-        cout << "Option:  " << option << endl;
-
-
-        // List all songs in server
-        if (option == "list") { 
-            answer << "list" << songs.size();
-            for (const auto& p : songs)
-                answer << p.first;
-        }
-
-
-        // Send bytes to message
-        else if (option == "play") {
-            string songName;
+	    // Receive answer from client
+	    message answer;
+	    
+	    if (option == "list"){
+	    	answer << songs.size();  
+		    for (const auto& p : songs)
+		        answer << p.first;
+		    s.send(answer);
+		}
+		else if (option == "add"){
+			string nameSong;
+			m >> nameSong;
+			auto search = songs.find(nameSong);  
+	        if (search != songs.end()){
+	            answer << "yes";
+	        	s.send(answer);
+	        }
+	        else{
+	            answer << "not";
+	        	s.send(answer);
+	        }
+	    }
+	    else if (option == "play"){
+	    	string songName;
             m >> songName;
             cout << songName << endl;
             answer << "file";
             fileToMessage(songs[songName], answer);
-        }
+            s.send(answer);
+	    }
+	}
 
-        else {
-            cout << "Invalid operation requested!!\n";
-        }
-
-        s.send(answer);
-    }
-
-    cout << "Finished\n";
-    return 0;
+	return 0;
 }
