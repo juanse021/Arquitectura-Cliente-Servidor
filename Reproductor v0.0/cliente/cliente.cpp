@@ -7,6 +7,7 @@
 #include <SFML/Audio.hpp>
 #include <zmqpp/zmqpp.hpp>
 #include <condition_variable>
+#include <SFML/System/Time.hpp>
 
 using namespace std;
 using namespace zmqpp;
@@ -35,7 +36,7 @@ class SafeQueue {
 			    cv.wait(lock);
 
             T element = q.front();
-            cout << "Next song: " << element << endl;
+            cout << "El elemento es: " << element << endl;
             q.pop();
             return element;
 		}
@@ -44,76 +45,88 @@ class SafeQueue {
 			return q.empty();
 		}
 
-		
-/*		void update() {
-		    for (int i = 0; i < q.size(); i++) {
-		        cout << "[" << q.front() << "]" << endl;
-		        q.pop();
-		    }		    
-		}
-*/
-
 		~SafeQueue() {};
 	
 };
 
-void messageToFile(const message &msg, const string &fileName) {
+void messageToFile(const message &msg, const string &fileName, bool first) {
     const void *data;
-    msg.get(&data, 1);
-    size_t size = msg.size(1);
-
-    ofstream ofs(fileName, ios::binary);
-    ofs.write((char *)data, size);
+    msg.get(&data, 0);
+    size_t size = msg.size(0);
+    if(first){
+        ofstream ofs(fileName, ios::binary | ios_base::app);
+        ofs.write((char *)data, size);
+    }else{
+        ofstream ofs(fileName, ios::binary);
+        ofs.write((char *)data, size);
+    
+    }
+    
 }
 
 void threadOperation(Music *music, SafeQueue<string> &playList, string &operation, socket &s){
     bool player = false;
-    
+    int parte = 0;
+    int fin = 0;
+    bool flag = false;
+    string nameSong;
+    Clock clock;
 	while (true) {   
 	 
 		if (operation == "play"){
+			flag = true;
+			operation = "none";
+			parte = 0;
+            fin = 0;
 			player = true;
-			message n;
-			n << "play";
-        	n << playList.front();
-        	if (playList.empty()){
-        		player=false;
-        	}
+        	message n;
+        	n << "play";
+        	nameSong = playList.front();
+        	n << nameSong;
+        	n << 0;
 	        s.send(n);
 
 	        // Receive operation to do
 	        message answer;
 	        s.receive(answer);
-            string debug;
-            answer >> debug;
-            cout << debug << endl;   
-	        messageToFile(answer, "song.ogg"); 
+            messageToFile(answer, "song.ogg",false);
             music->openFromFile("song.ogg");
             music->play();
-            operation = "none";
-           
+            Clock reset;
+            clock=reset;
+            if (playList.empty()){
+        		player=false;
+        	}
+        	answer>>fin;
+	        answer>>fin;
+            cout<<fin<<endl;
+            parte++;
+		}
+
+		if (fin == 0 && flag){
+			if(clock.getElapsedTime().asSeconds()>10){
+				message n;
+            	n << "play";
+            	n << nameSong;
+            	n << parte;
+    	        s.send(n);
+
+    	        message answer;
+    	        s.receive(answer);
+                messageToFile(answer, "song.ogg",true);
+                Clock reset;
+                clock=reset;
+    	        answer>>fin;
+    	        answer>>fin;
+                cout<<fin<<endl;
+                parte++;
+			}
 		}
 	
 		
 		
 		if (music->getStatus() != SoundSource::Playing && player){
-			message n;
-			n << "play";
-        	n << playList.front();
-        	if (playList.empty()){
-        		player = false;
-        	}
-	        s.send(n);
-
-	        // Receive operation to do
-	        message answer;
-	        s.receive(answer);
-            string debug;
-            answer >> debug;
-            cout << debug << endl;   
-	        messageToFile(answer, "song.ogg"); 
-            music->openFromFile("song.ogg");
-            music->play();
+			operation = "play";
 		}
 	}
 	

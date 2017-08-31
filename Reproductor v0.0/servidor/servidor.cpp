@@ -65,9 +65,24 @@ vector<char> readFileToBytes(const string& fileName) {
 
     return result;
 }
-void fileToMessage(const string& fileName, message& msg) {
+int fileToMessage(const string& fileName, message& msg, int parte) {
     vector<char> bytes = readFileToBytes(fileName);
+    vector<char> v;
+    int inicio = (512*1024)*parte;
+    int fin = inicio + (512*1024);
+    for(int i=inicio;i<fin;i++){
+        if(i>=bytes.size()){
+            bytes=v;
+            msg.add_raw(bytes.data(), bytes.size());
+            return 1;
+        }
+        else{
+            v.push_back(bytes[i]);
+        }
+    }
+    bytes=v;
     msg.add_raw(bytes.data(), bytes.size());
+    return 0;
 }
 
 int main() {
@@ -80,6 +95,7 @@ int main() {
     unordered_map<string,string> songs = fromDirectory("music/*");
 
     cout << "Start serving requests!" << endl;
+    int parte;
     while(true){
 	    // Send message
 	    message m;
@@ -91,9 +107,9 @@ int main() {
 	    message answer;
 	    
 	    if (option == "list"){
-	    	answer << songs.size();  
+	    	answer<<songs.size();  
 		    for (const auto& p : songs)
-		        answer << p.first;
+		        answer<<p.first;
 		    s.send(answer);
 		}
 				
@@ -107,16 +123,20 @@ int main() {
 	        }
 	        else{
 	            answer << "not";
-	        	  s.send(answer);
+	        	s.send(answer);
 	        }
 	    }
 	    else if (option == "play"){
-	        string songName;
-          m >> songName;
-          cout << songName << endl;
-          answer << "file";
-          fileToMessage(songs[songName], answer);
-          s.send(answer);
+	    	message answer;
+            string songName;
+            m >> songName;
+            m >> parte;
+            cout << songName << endl;
+            int fin;
+            fin = fileToMessage(songs[songName], answer,parte);
+            answer<<fin;
+            cout<<"fin"<<fin<<endl;
+            s.send(answer);     
 	    }
 	}
 
